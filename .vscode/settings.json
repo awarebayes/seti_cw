@@ -3,6 +3,7 @@
         "select.h": "c",
         "any": "c",
         "queue.h": "c",
-        "epoll.h": "c"
+        "epoll.h": "c",
+        "sched.h": "c"
     }
 }

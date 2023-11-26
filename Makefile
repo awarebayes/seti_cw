@@ -1,7 +1,7 @@
 CPPFLAGS =  -D_DEFAULT_SOURCE
 CFLAGS   = -std=c99 -pedantic -Wall -Wextra -O0 -g
 CC = gcc
-LDFLAGS  = -lpthread -static
+LDFLAGS  = -lpthread 
 COMPONENTS = connection buffer http queue_impl srv mysock util
 
 all: misha_server

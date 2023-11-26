@@ -20,7 +20,7 @@ extern const char *req_field_str[];
 enum req_method
 {
   METH_GET,
-  M_HEAD,
+  METH_HEAD,
   NUM_REQ_METHODS,
 };
 

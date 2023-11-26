@@ -33,4 +33,4 @@ void *realloc_array(void *, size_t, size_t);
 long long string_to_num(const char *, long long, long long, const char **);
 int append_before(char *, size_t, const char *);
 
-int buffer_prepend(struct my_buffer *, const char *, ...);
+int buffer_append(struct my_buffer *, const char *, ...);

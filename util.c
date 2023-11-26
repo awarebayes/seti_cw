@@ -171,7 +171,7 @@ void *realloc_array(void *optr, size_t nmemb, size_t size) {
   return realloc(optr, size * nmemb);
 }
 
-int buffer_prepend(struct my_buffer *buf, const char *suffixfmt, ...) {
+int buffer_append(struct my_buffer *buf, const char *suffixfmt, ...) {
   va_list ap;
   int ret;
 
