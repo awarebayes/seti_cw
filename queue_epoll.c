@@ -25,25 +25,14 @@ int queue_add_fd(int qfd, int fd, enum queue_event_type t, int shared,
 {
 	struct epoll_event e;
 
-	/* set event flag */
 	if (shared)
 	{
-		/*
-		 * if the fd is shared, "exclusive" is the only
-		 * way to avoid spurious wakeups and "blocking"
-		 * accept()'s.
-		 */
+
 		e.events = EPOLLEXCLUSIVE;
 	}
 	else
 	{
-		/*
-		 * if we have the fd for ourselves (i.e. only
-		 * within the thread), we want to be
-		 * edge-triggered, as our logic makes sure
-		 * that the buffers are drained when we return
-		 * to epoll_wait()
-		 */
+
 		e.events = EPOLLET;
 	}
 
@@ -66,10 +55,8 @@ int queue_add_fd(int qfd, int fd, enum queue_event_type t, int shared,
 		log_info("Added fd %d to queue %d with data to %p to write \n", fd, qfd, data);
 	}
 
-	/* set data pointer */
 	e.data.ptr = (void *)data;
 
-	/* register fd in the interest list */
 	if (epoll_ctl(qfd, EPOLL_CTL_ADD, fd, &e) < 0)
 	{
 		warn("epoll_ctl:");
@@ -82,7 +69,6 @@ int queue_mod_fd(int qfd, int fd, enum queue_event_type t, const void *data)
 {
 	struct epoll_event e;
 
-	/* set event flag (only for non-shared fd's) */
 	e.events = EPOLLET;
 
 	switch (t)
@@ -105,10 +91,8 @@ int queue_mod_fd(int qfd, int fd, enum queue_event_type t, const void *data)
 		log_info("Modified fd %d to queue %d with data to %p to write \n", fd, qfd, data);
 	}
 
-	/* set data pointer */
 	e.data.ptr = (void *)data;
 
-	/* register fd in the interest list */
 	if (epoll_ctl(qfd, EPOLL_CTL_MOD, fd, &e) < 0)
 	{
 		warn("epoll_ctl:");

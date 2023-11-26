@@ -73,10 +73,9 @@ static void html_escape(const char *src, char *dst, size_t dst_siz)
     }
     if (k == LEN(escape))
     {
-      /* no escape char at src[i] */
+
       if (j == dst_siz - 1)
       {
-        /* silent truncation */
         break;
       }
       else
@@ -86,12 +85,10 @@ static void html_escape(const char *src, char *dst, size_t dst_siz)
     }
     else
     {
-      /* escape char at src[i] */
       esclen = strlen(escape[k].s);
 
       if (j >= dst_siz - esclen)
       {
-        /* silent truncation */
         break;
       }
       else
@@ -147,7 +144,7 @@ enum status prepare_dir_listing_buffer(const struct resp_t *res,
     html_escape(e[i]->d_name, esc, sizeof(esc));
 
     memset(abspath, 0, sizeof(*abspath));
-    sprintf(abspath, "%s%s",res->m_internal_path, e[i]->d_name);
+    sprintf(abspath, "%s%s", res->m_internal_path, e[i]->d_name);
     html_escape(abspath, esc_abspath, sizeof(esc_abspath));
     if (buffer_append(buf, "<br />\n\t\t<a href=\"%s%s\">%s%s</a>", esc_abspath,
                       (e[i]->d_type == DT_DIR) ? "/" : "", esc,
@@ -209,24 +206,20 @@ enum status prepare_file_buffer(const struct resp_t *res, struct my_buffer *buf,
   ssize_t r;
   size_t remaining;
 
-  /* reset buffer */
   memset(buf, 0, sizeof(*buf));
 
-  /* open file */
   if (!(fp = fopen(res->m_internal_path, "r")))
   {
     s = STATUS_FORBIDDEN;
     goto cleanup;
   }
 
-  /* seek to lower bound + progress */
   if (fseek(fp, res->m_file.lower + *progress, SEEK_SET))
   {
     s = STATUS_INTERNAL_SERVER_ERROR;
     goto cleanup;
   }
 
-  /* read data into buf */
   remaining = res->m_file.upper - res->m_file.lower + 1 - *progress;
   while ((r = fread(buf->data + buf->length, 1,
                     MIN(sizeof(buf->data) - buf->length, remaining), fp)))

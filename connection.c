@@ -67,16 +67,12 @@ void serve_con(struct conn_t *c, const struct server *srv)
   switch (c->m_state)
   {
   case CONN_VACANT:
-    /*
-     * we were passed a "fresh" connection which should now
-     * try to receive the header, reset buf beforehand
-     */
     memset(&c->buf, 0, sizeof(c->buf));
 
     c->m_state = CONN_RECV_HEADER;
-    /* fallthrough */
+
   case CONN_RECV_HEADER:
-    /* receive header */
+
     done = 0;
     if ((s = receive_header_http(c->m_file_descriptor, &c->buf, &done)))
     {
@@ -85,34 +81,32 @@ void serve_con(struct conn_t *c, const struct server *srv)
     }
     if (!done)
     {
-      /* not done yet */
+
       return;
     }
 
-    /* parse header */
     if ((s = parse_header_http(c->buf.data, &c->m_req)))
     {
       prepare_err_resp_http(&c->m_req, &c->m_resp, s);
       goto response;
     }
 
-    /* prepare response struct */
     prepare_resp_http(&c->m_req, &c->m_resp, srv);
   response:
-    /* generate response header */
+
     if ((s = prep_header_buf_http(&c->m_resp, &c->buf)))
     {
       prepare_err_resp_http(&c->m_req, &c->m_resp, s);
       if ((s = prep_header_buf_http(&c->m_resp, &c->buf)))
       {
-        /* couldn't generate the header, we failed for good */
+
         c->m_resp.m_status = s;
         goto err;
       }
     }
 
     c->m_state = CONN_SEND_HEADER;
-    /* fallthrough */
+
   case CONN_SEND_HEADER:
     if ((s = send_buffer_http(c->m_file_descriptor, &c->buf)))
     {
@@ -121,27 +115,26 @@ void serve_con(struct conn_t *c, const struct server *srv)
     }
     if (c->buf.length > 0)
     {
-      /* not done yet */
+
       return;
     }
 
     c->m_state = CONN_SEND_BODY;
-    /* fallthrough */
+
   case CONN_SEND_BODY:
     if (c->m_req.m_method == METH_GET)
     {
       if (c->buf.length == 0)
       {
-        /* fill buffer with body data */
+
         if ((s = data_fct[c->m_resp.m_type](&c->m_resp, &c->buf,
                                             &c->m_progr)))
         {
-          /* too late to do any real error handling */
+
           c->m_resp.m_status = s;
           goto err;
         }
 
-        /* if the buffer remains empty, we are done */
         if (c->buf.length == 0)
         {
           break;
@@ -149,10 +142,10 @@ void serve_con(struct conn_t *c, const struct server *srv)
       }
       else
       {
-        /* send buffer */
+
         if ((s = send_buffer_http(c->m_file_descriptor, &c->buf)))
         {
-          /* too late to do any real error handling */
+
           c->m_resp.m_status = s;
           goto err;
         }
@@ -175,24 +168,8 @@ static struct conn_t *connection_get_drop_candidate(struct conn_t *connection,
   struct conn_t *c, *minc;
   size_t i, j, maxcnt, cnt;
 
-  /*
-   * determine the most-unimportant connection 'minc' of the in-address
-   * with most connections; this algorithm has a complexity of O(n²)
-   * in time but is O(1) in space; there are algorithms with O(n) in
-   * time and space, but this would require memory allocation,
-   * which we avoid. Given the simplicity of the inner loop and
-   * relatively small number of slots per thread, this is fine.
-   */
   for (i = 0, minc = NULL, maxcnt = 0; i < nslots; i++)
   {
-    /*
-     * we determine how many connections have the same
-     * in-address as connection[i], but also minimize over
-     * that set with other criteria, yielding a general
-     * minimizer c. We first set it to connection[i] and
-     * update it, if a better candidate shows up, in the inner
-     * loop
-     */
     c = &connection[i];
 
     for (j = 0, cnt = 0; j < nslots; j++)
@@ -204,31 +181,16 @@ static struct conn_t *connection_get_drop_candidate(struct conn_t *connection,
       }
       cnt++;
 
-      /* minimize over state */
       if (connection[j].m_state < c->m_state)
       {
         c = &connection[j];
       }
       else if (connection[j].m_state == c->m_state)
       {
-        /* minimize over progress */
+
         if (c->m_state == CONN_SEND_BODY &&
             connection[i].m_resp.m_type != c->m_resp.m_type)
         {
-          /*
-           * mixed response types; progress
-           * is not comparable
-           *
-           * the res-type-enum is ordered as
-           * DIRLISTING, ERROR, FILE, i.e.
-           * in rising priority, because a
-           * file transfer is most important,
-           * followed by error-messages.
-           * Dirlistings as an "interactive"
-           * feature (that take up lots of
-           * resources) have the lowest
-           * priority
-           */
           if (connection[i].m_resp.m_type < c->m_resp.m_type)
           {
             c = &connection[j];
@@ -236,12 +198,6 @@ static struct conn_t *connection_get_drop_candidate(struct conn_t *connection,
         }
         else if (connection[j].m_progr < c->m_progr)
         {
-          /*
-           * for CONN_SEND_BODY with same response
-           * type, CONN_RECV_HEADER and CONN_SEND_BODY
-           * it is sufficient to compare the
-           * raw progress
-           */
           c = &connection[j];
         }
       }
@@ -249,7 +205,7 @@ static struct conn_t *connection_get_drop_candidate(struct conn_t *connection,
 
     if (cnt > maxcnt)
     {
-      /* this run yielded an even greedier in-address */
+
       minc = c;
       maxcnt = cnt;
     }
@@ -264,7 +220,6 @@ struct conn_t *accept_con(int in_socket, struct conn_t *connection,
   struct conn_t *c = NULL;
   size_t i;
 
-  /* find vacant connection (i.e. one with no fd assigned to it) */
   for (i = 0; i < nslots; i++)
   {
     if (connection[i].m_file_descriptor == 0)
@@ -281,26 +236,20 @@ struct conn_t *accept_con(int in_socket, struct conn_t *connection,
     reset_con(c);
   }
 
-  /* accept connection */
   if ((c->m_file_descriptor =
            accept(in_socket, (struct sockaddr *)&c->m_sock_storage,
                   &(socklen_t){sizeof(c->m_sock_storage)})) < 0)
   {
     if (errno != EAGAIN && errno != EWOULDBLOCK)
     {
-      /*
-       * this should not happen, as we received the
-       * event that there are pending connections here
-       */
       log_warn("accept:");
     }
     return NULL;
   }
 
-  /* set socket to non-blocking mode */
   if (unblock_socket(c->m_file_descriptor))
   {
-    /* we can't allow blocking sockets */
+
     return NULL;
   }
 

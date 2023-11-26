@@ -11,29 +11,36 @@
 
 char *argv0;
 
-int get_time_stamp(char *buf, size_t len, time_t t) {
+int get_time_stamp(char *buf, size_t len, time_t t)
+{
   struct tm tm;
 
   if (gmtime_r(&t, &tm) == NULL ||
-      strftime(buf, len, "%a, %d %b %Y %T GMT", &tm) == 0) {
+      strftime(buf, len, "%a, %d %b %Y %T GMT", &tm) == 0)
+  {
     return 1;
   }
 
   return 0;
 }
 
-static void log_err(const char *fmt, va_list ap) {
+static void log_err(const char *fmt, va_list ap)
+{
   vfprintf(stderr, fmt, ap);
 
-  if (fmt[0] && fmt[strlen(fmt) - 1] == ':') {
+  if (fmt[0] && fmt[strlen(fmt) - 1] == ':')
+  {
     fputc(' ', stderr);
     perror(NULL);
-  } else {
+  }
+  else
+  {
     fputc('\n', stderr);
   }
 }
 
-void log_warn(const char *fmt, ...) {
+void log_warn(const char *fmt, ...)
+{
   va_list ap;
 
   va_start(ap, fmt);
@@ -41,7 +48,8 @@ void log_warn(const char *fmt, ...) {
   va_end(ap);
 }
 
-void log_info(const char *fmt, ...) {
+void log_info(const char *fmt, ...)
+{
   va_list ap;
 
   va_start(ap, fmt);
@@ -49,7 +57,8 @@ void log_info(const char *fmt, ...) {
   va_end(ap);
 }
 
-void die(const char *fmt, ...) {
+void die(const char *fmt, ...)
+{
   va_list ap;
 
   va_start(ap, fmt);
@@ -59,7 +68,8 @@ void die(const char *fmt, ...) {
   exit(1);
 }
 
-int esnprintf(char *str, size_t size, const char *fmt, ...) {
+int esnprintf(char *str, size_t size, const char *fmt, ...)
+{
   va_list ap;
   int ret;
 
@@ -70,53 +80,63 @@ int esnprintf(char *str, size_t size, const char *fmt, ...) {
   return (ret < 0 || (size_t)ret >= size);
 }
 
-int tokenize_space(const char *s, char **t, size_t tlen) {
+int tokenize_space(const char *s, char **t, size_t tlen)
+{
   const char *tok;
   size_t i, j, toki, spaces;
 
-  /* fill token-array with NULL-pointers */
-  for (i = 0; i < tlen; i++) {
+  for (i = 0; i < tlen; i++)
+  {
     t[i] = NULL;
   }
   toki = 0;
 
-  /* don't allow NULL string or leading spaces */
-  if (!s || *s == ' ') {
+  if (!s || *s == ' ')
+  {
     return 1;
   }
 start:
-  /* skip spaces */
+
   for (; *s == ' '; s++)
     ;
 
-  /* don't allow trailing spaces */
-  if (*s == '\0') {
+  if (*s == '\0')
+  {
     goto err;
   }
 
-  /* consume token */
-  for (tok = s, spaces = 0;; s++) {
-    if (*s == '\\' && *(s + 1) == ' ') {
+  for (tok = s, spaces = 0;; s++)
+  {
+    if (*s == '\\' && *(s + 1) == ' ')
+    {
       spaces++;
       s++;
       continue;
-    } else if (*s == ' ') {
-      /* end of token */
+    }
+    else if (*s == ' ')
+    {
+
       goto token;
-    } else if (*s == '\0') {
-      /* end of string */
+    }
+    else if (*s == '\0')
+    {
+
       goto token;
     }
   }
 token:
-  if (toki >= tlen) {
+  if (toki >= tlen)
+  {
     goto err;
   }
-  if (!(t[toki] = malloc(s - tok - spaces + 1))) {
+  if (!(t[toki] = malloc(s - tok - spaces + 1)))
+  {
     die("malloc:");
   }
-  for (i = 0, j = 0; j < s - tok - spaces + 1; i++, j++) {
-    if (tok[i] == '\\' && tok[i + 1] == ' ') {
+  for (i = 0, j = 0; j < s - tok - spaces + 1; i++, j++)
+  {
+    if (tok[i] == '\\' && tok[i + 1] == ' ')
+    {
       i++;
     }
     t[toki][j] = tok[i];
@@ -124,14 +144,16 @@ token:
   t[toki][s - tok - spaces] = '\0';
   toki++;
 
-  if (*s == ' ') {
+  if (*s == ' ')
+  {
     s++;
     goto start;
   }
 
   return 0;
 err:
-  for (i = 0; i < tlen; i++) {
+  for (i = 0; i < tlen; i++)
+  {
     free(t[i]);
     t[i] = NULL;
   }
@@ -139,10 +161,12 @@ err:
   return 1;
 }
 
-int append_before(char *str, size_t size, const char *prefix) {
+int append_before(char *str, size_t size, const char *prefix)
+{
   size_t len = strlen(str), prefixlen = strlen(prefix);
 
-  if (len + prefixlen + 1 > size) {
+  if (len + prefixlen + 1 > size)
+  {
     return 1;
   }
 
@@ -156,22 +180,22 @@ int append_before(char *str, size_t size, const char *prefix) {
 #define TOOSMALL 2
 #define TOOLARGE 3
 
-/*
- * This is sqrt(SIZE_MAX+1), as s1*s2 <= SIZE_MAX
- * if both s1 < MUL_NO_OVERFLOW and s2 < MUL_NO_OVERFLOW
- */
+
 #define MUL_NO_OVERFLOW ((size_t)1 << (sizeof(size_t) * 4))
 
-void *realloc_array(void *optr, size_t nmemb, size_t size) {
+void *realloc_array(void *optr, size_t nmemb, size_t size)
+{
   if ((nmemb >= MUL_NO_OVERFLOW || size >= MUL_NO_OVERFLOW) && nmemb > 0 &&
-      SIZE_MAX / nmemb < size) {
+      SIZE_MAX / nmemb < size)
+  {
     errno = ENOMEM;
     return NULL;
   }
   return realloc(optr, size * nmemb);
 }
 
-int buffer_append(struct my_buffer *buf, const char *suffixfmt, ...) {
+int buffer_append(struct my_buffer *buf, const char *suffixfmt, ...)
+{
   va_list ap;
   int ret;
 
@@ -180,24 +204,26 @@ int buffer_append(struct my_buffer *buf, const char *suffixfmt, ...) {
                   suffixfmt, ap);
   va_end(ap);
 
-  if (ret < 0 || (size_t)ret >= (sizeof(buf->data) - buf->length)) {
-    /* truncation occured, discard and error out */
+  if (ret < 0 || (size_t)ret >= (sizeof(buf->data) - buf->length))
+  {
+
     memset(buf->data + buf->length, 0, sizeof(buf->data) - buf->length);
     return 1;
   }
 
-  /* increase buffer length by number of bytes written */
   buf->length += ret;
 
   return 0;
 }
 
 long long string_to_num(const char *numstr, long long minval, long long maxval,
-                        const char **errstrp) {
+                        const char **errstrp)
+{
   long long ll = 0;
   int error = 0;
   char *ep;
-  struct errval {
+  struct errval
+  {
     const char *errstr;
     int err;
   } ev[4] = {
@@ -209,9 +235,12 @@ long long string_to_num(const char *numstr, long long minval, long long maxval,
 
   ev[0].err = errno;
   errno = 0;
-  if (minval > maxval) {
+  if (minval > maxval)
+  {
     error = INVALID;
-  } else {
+  }
+  else
+  {
     ll = strtoll(numstr, &ep, 10);
     if (numstr == ep || *ep != '\0')
       error = INVALID;

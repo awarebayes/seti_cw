@@ -12,7 +12,7 @@ struct my_epoll_event
 	void *ptr;
 	int queue_id;
 	int fd;
-	uint32_t events;   /* Epoll events */
+	uint32_t events;
 };
 
 typedef struct my_epoll_event queue_event;

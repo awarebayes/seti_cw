@@ -26,25 +26,21 @@ create_worker(void *data)
 	ssize_t nready;
 	size_t i;
 
-	/* allocate connections */
 	if (!(connection = calloc(d->m_num_slots, sizeof(*connection))))
 	{
 		die("calloc:");
 	}
 
-	/* create event queue */
 	if ((queue_fd = queue_create()) < 0)
 	{
 		exit(1);
 	}
 
-	/* add in_socket to the interest list (with data=NULL) */
 	if (queue_add_fd(queue_fd, d->m_in_socket, QUEUE_EVENT_IN, 1, NULL) < 0)
 	{
 		exit(1);
 	}
 
-	/* allocate event array */
 	if (!(event = realloc_array(event, d->m_num_slots, sizeof(*event))))
 	{
 		die("reallocarray:");
@@ -52,13 +48,12 @@ create_worker(void *data)
 
 	for (;;)
 	{
-		/* wait for new activity */
+
 		if ((nready = queue_wait(queue_fd, event, d->m_num_slots)) < 0)
 		{
 			exit(1);
 		}
 
-		/* handle events */
 		for (i = 0; i < (size_t)nready; i++)
 		{
 			c = queue_event_get_data(&event[i]);
@@ -78,25 +73,19 @@ create_worker(void *data)
 
 			if (c == NULL)
 			{
-				/* add new connection to the interest list */
+
 				if (!(newc = accept_con(d->m_in_socket,
 										connection,
 										d->m_num_slots)))
 				{
-					// socket is either blocking or something failed.
 					continue;
 				}
 
-				/*
-				 * add event to the interest list
-				 * (we want IN, because we start
-				 * with receiving the header)
-				 */
 				if (queue_add_fd(queue_fd, newc->m_file_descriptor,
 								 QUEUE_EVENT_IN,
 								 0, newc) < 0)
 				{
-					/* not much we can do here */
+
 					continue;
 				}
 			}
@@ -104,21 +93,17 @@ create_worker(void *data)
 			{
 
 				int cfd = c->m_file_descriptor;
-				/* serve existing connection */
+
 				serve_con(c, d->m_serv);
 
 				if (c->m_file_descriptor == 0)
 				{
-					/* we are done */
+
 					queue_rem_fd(queue_fd, cfd);
 					memset(c, 0, sizeof(struct conn_t));
 					continue;
 				}
 
-				/*
-				 * rearm the event based on the state
-				 * we are "stuck" at
-				 */
 				switch (c->m_state)
 				{
 				case CONN_RECV_HEADER:
@@ -161,7 +146,6 @@ void init_thread_pool_for_server(int in_socket, size_t nthreads, size_t nslots,
 	struct data_for_worker *d = NULL;
 	size_t i;
 
-	/* allocate data_for_worker structs */
 	if (!(d = realloc_array(d, nthreads, sizeof(*d))))
 	{
 		die("reallocarray:");
@@ -173,7 +157,6 @@ void init_thread_pool_for_server(int in_socket, size_t nthreads, size_t nslots,
 		d[i].m_serv = srv;
 	}
 
-	/* allocate and initialize thread pool */
 	if (!(thread = realloc_array(thread, nthreads, sizeof(*thread))))
 	{
 		die("reallocarray:");
@@ -196,7 +179,6 @@ void init_thread_pool_for_server(int in_socket, size_t nthreads, size_t nslots,
 		}
 	}
 
-	/* wait for threads */
 	for (i = 0; i < nthreads; i++)
 	{
 		if ((errno = pthread_join(thread[i], NULL)))

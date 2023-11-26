@@ -112,10 +112,6 @@ enum status receive_header_http(int fd, struct my_buffer *buf, int *done)
     {
       if (errno == EAGAIN || errno == EWOULDBLOCK)
       {
-        /*
-         * socket is drained, return normally,
-         * but set done to zero
-         */
         *done = 0;
         return 0;
       }
@@ -133,14 +129,12 @@ enum status receive_header_http(int fd, struct my_buffer *buf, int *done)
     }
     buf->length += r;
 
-    /* check if we are done (header terminated) */
     if (buf->length >= 4 &&
         !memcmp(buf->data + buf->length - 4, "\r\n\r\n", 4))
     {
       break;
     }
 
-    /* buffer is full or read over, but header is not terminated */
     if (r == 0 || buf->length == sizeof(buf->data))
     {
       s = STATUS_INTERNAL_SERVER_ERROR; // response is too big
@@ -148,7 +142,6 @@ enum status receive_header_http(int fd, struct my_buffer *buf, int *done)
     }
   }
 
-  /* header is complete, remove last \r\n and set done */
   buf->length -= 2;
   *done = 1;
 
@@ -164,21 +157,18 @@ enum status prep_header_buf_http(const struct resp_t *res,
   char tstmp[FIELD_MAX];
   size_t i;
 
-  /* reset buffer */
   memset(buf, 0, sizeof(*buf));
 
-  /* generate timestamp */
   if (get_time_stamp(tstmp, sizeof(tstmp), time(NULL)))
   {
     goto err;
   }
 
-  /* write data */
   if (buffer_append(buf,
-                     "HTTP/1.1 %d %s\r\n"
-                     "Date: %s\r\n"
-                     "Connection: close\r\n",
-                     res->m_status, status_str[res->m_status], tstmp))
+                    "HTTP/1.1 %d %s\r\n"
+                    "Date: %s\r\n"
+                    "Connection: close\r\n",
+                    res->m_status, status_str[res->m_status], tstmp))
   {
     goto err;
   }
@@ -220,7 +210,7 @@ enum status parse_header_http(const char *header_str, struct req_t *req)
 
   memset(req, 0, sizeof(*req));
 
-  // Method
+  // Проверка метода: GET, HEAD
   for (i = 0; i < NUM_REQ_METHODS; i++)
   {
     mlen = strlen(req_method_str[i]);
@@ -307,12 +297,13 @@ enum status parse_header_http(const char *header_str, struct req_t *req)
   }
   memcpy(req->m_path, path_start, temp - path_start);
   req->m_path[temp - path_start] = '\0';
+  // https://ru.wikipedia.org/wiki/URL#%D0%9A%D0%BE%D0%B4%D0%B8%D1%80%D0%BE%D0%B2%D0%B0%D0%BD%D0%B8%D0%B5_URL
   decode(req->m_path, req->m_path);
 
   // Write query
   if (query_start != NULL)
   {
-    /* query ends either at s (if fragment present) or q */
+
     temp = (fragment_start != NULL) ? fragment_start : end;
 
     if ((size_t)(temp - (query_start + 1) + 1) > LEN(req->m_query))
@@ -323,10 +314,9 @@ enum status parse_header_http(const char *header_str, struct req_t *req)
     req->m_query[temp - (query_start + 1)] = '\0';
   }
 
-  /* write fragment if present */
   if (fragment_start != NULL)
   {
-    /* the fragment always starts at s + 1 and ends at q */
+
     if ((size_t)(end - (fragment_start + 1) + 1) > LEN(req->m_fragment))
     {
       return STATUS_INTERNAL_SERVER_ERROR;
@@ -335,10 +325,8 @@ enum status parse_header_http(const char *header_str, struct req_t *req)
     req->m_fragment[end - (fragment_start + 1)] = '\0';
   }
 
-  /* basis for next step */
   path_start = end + 1;
 
-  /* HTTP-VERSION */
   if (strncmp(path_start, "HTTP/", sizeof("HTTP/") - 1))
   {
     return STATUS_INTERNAL_SERVER_ERROR;
@@ -351,20 +339,14 @@ enum status parse_header_http(const char *header_str, struct req_t *req)
   }
   path_start += sizeof("1.*") - 1;
 
-  /* check terminator */
   if (strncmp(path_start, "\r\n", sizeof("\r\n") - 1))
   {
     return STATUS_INTERNAL_SERVER_ERROR;
   }
 
-  /* basis for next step */
   path_start += sizeof("\r\n") - 1;
 
-  /*
-   * parse request-fields
-   */
 
-  /* match field type */
   for (; *path_start != '\0';)
   {
     for (i = 0; i < NUM_REQ_FIELDS; i++)
@@ -377,7 +359,7 @@ enum status parse_header_http(const char *header_str, struct req_t *req)
     }
     if (i == NUM_REQ_FIELDS)
     {
-      /* unmatched field, skip this line */
+
       if (!(end = strstr(path_start, "\r\n")))
       {
         return STATUS_INTERNAL_SERVER_ERROR;
@@ -388,17 +370,14 @@ enum status parse_header_http(const char *header_str, struct req_t *req)
 
     path_start += strlen(req_field_str[i]);
 
-    /* a single colon must follow the field name */
     if (*path_start != ':')
     {
       return STATUS_INTERNAL_SERVER_ERROR;
     }
 
-    /* skip whitespace */
     for (++path_start; *path_start == ' ' || *path_start == '\t'; path_start++)
       ;
 
-    /* extract field content */
     if (!(end = strstr(path_start, "\r\n")))
     {
       return STATUS_INTERNAL_SERVER_ERROR;
@@ -410,52 +389,8 @@ enum status parse_header_http(const char *header_str, struct req_t *req)
     memcpy(req->m_field[i], path_start, end - path_start);
     req->m_field[i][end - path_start] = '\0';
 
-    /* go to next line */
     path_start = end + (sizeof("\r\n") - 1);
   }
-
-  /*
-   * clean up host
-   */
-
-  m = strrchr(req->m_field[REQ_HOST], ':');
-  n = strrchr(req->m_field[REQ_HOST], ']');
-
-  /* strip port suffix but don't interfere with IPv6 bracket notation
-   * as per RFC 2732 */
-  if (m && (!n || m > n))
-  {
-    /* port suffix must not be empty */
-    if (*(m + 1) == '\0')
-    {
-      return STATUS_INTERNAL_SERVER_ERROR;
-    }
-    *m = '\0';
-  }
-
-  /* strip the brackets from the IPv6 notation and validate the address */
-  if (n)
-  {
-    /* brackets must be on the outside */
-    if (req->m_field[REQ_HOST][0] != '[' || *(n + 1) != '\0')
-    {
-      return STATUS_INTERNAL_SERVER_ERROR;
-    }
-
-    /* remove the right bracket */
-    *n = '\0';
-    m = req->m_field[REQ_HOST] + 1;
-
-    /* validate the contained IPv6 address */
-    if (inet_pton(AF_INET6, m, &addr) != 1)
-    {
-      return STATUS_INTERNAL_SERVER_ERROR;
-    }
-
-    /* copy it into the host field */
-    memmove(req->m_field[REQ_HOST], m, n - m + 1);
-  }
-
   return 0;
 }
 
@@ -485,19 +420,17 @@ static enum status norm_path(char *uri, int *redirect)
   int last = 0;
   char *p, *q;
 
-  /* require and skip first slash */
   if (uri[0] != '/')
   {
     return STATUS_INTERNAL_SERVER_ERROR;
   }
   p = uri + 1;
 
-  /* get length of URI */
   len = strlen(p);
 
   for (; !last;)
   {
-    /* bound uri component within (p,q) */
+
     if (!(q = strchr(p, '/')))
     {
       q = strchr(p, '\0');
@@ -510,15 +443,15 @@ static enum status norm_path(char *uri, int *redirect)
     }
     else if (p == q || (q - p == 1 && p[0] == '.'))
     {
-      /* "/" or "./" */
+
       goto squash;
     }
     else if (q - p == 2 && p[0] == '.' && p[1] == '.')
     {
-      /* "../" */
+
       if (p != uri + 1)
       {
-        /* place p right after the previous / */
+
         for (p -= 2; p > uri && *p != '/'; p--)
           ;
         p++;
@@ -527,12 +460,12 @@ static enum status norm_path(char *uri, int *redirect)
     }
     else
     {
-      /* move on */
+
       p = q + 1;
       continue;
     }
   squash:
-    /* squash (p,q) into void */
+
     if (last)
     {
       *p = '\0';
@@ -571,7 +504,6 @@ static enum status ensure_dirslash(char uri[PATH_MAX], int *redirect)
 {
   size_t len;
 
-  /* append '/' to URI if not present */
   len = strlen(uri);
   if (len + 1 + 1 > PATH_MAX)
   {
@@ -602,24 +534,20 @@ static enum status handle_range(const char *str, size_t size, size_t *lower,
    *             sf     sl   e
    */
 
-  /* default to the complete range */
   *lower = 0;
   *upper = size - 1;
 
-  /* done if no range-string is given */
   if (str == NULL || *str == '\0')
   {
     return 0;
   }
 
-  /* skip opening statement */
   if (strncmp(str, "bytes=", sizeof("bytes=") - 1))
   {
     return STATUS_INTERNAL_SERVER_ERROR;
   }
   start_first = str + (sizeof("bytes=") - 1);
 
-  /* check string (should only contain numbers and a hyphen) */
   for (end = start_first, start_last = NULL; *end != '\0'; end++)
   {
     if (*end < '0' || *end > '9')
@@ -628,12 +556,12 @@ static enum status handle_range(const char *str, size_t size, size_t *lower,
       {
         if (start_last != NULL)
         {
-          /* we have already seen a hyphen */
+
           return STATUS_INTERNAL_SERVER_ERROR;
         }
         else
         {
-          /* place q after the hyphen */
+
           start_last = end + 1;
         }
       }
@@ -645,7 +573,7 @@ static enum status handle_range(const char *str, size_t size, size_t *lower,
   }
   if (start_last == NULL)
   {
-    /* the input string must contain a hyphen */
+
     return STATUS_INTERNAL_SERVER_ERROR;
   }
   end = start_last + strlen(start_last);
@@ -662,12 +590,6 @@ static enum status handle_range(const char *str, size_t size, size_t *lower,
 
   if (first[0] != '\0')
   {
-    /*
-     * range has format "first-last" or "first-",
-     * i.e. return bytes 'first' to 'last' (or the
-     * last byte if 'last' is not given),
-     * inclusively, and byte-numbering beginning at 0
-     */
     *lower = string_to_num(first, 0, MIN(SIZE_MAX, LLONG_MAX), &err);
     if (!err)
     {
@@ -682,46 +604,34 @@ static enum status handle_range(const char *str, size_t size, size_t *lower,
     }
     if (err)
     {
-      /* one of the strtonum()'s failed */
+
       return STATUS_INTERNAL_SERVER_ERROR;
     }
 
-    /* check ranges */
     if (*lower > *upper || *lower >= size)
     {
       return STATUS_INTERNAL_SERVER_ERROR;
     }
 
-    /* adjust upper limit to be at most the last byte */
     *upper = MIN(*upper, size - 1);
   }
   else
   {
-    /* last must not also be empty */
+
     if (last[0] == '\0')
     {
       return STATUS_INTERNAL_SERVER_ERROR;
     }
 
-    /*
-     * Range has format "-num", i.e. return the 'num'
-     * last bytes
-     */
-
-    /*
-     * use upper as a temporary storage for 'num',
-     * as we know 'upper' is size - 1
-     */
     *upper = string_to_num(last, 0, MIN(SIZE_MAX, LLONG_MAX), &err);
     if (err)
     {
       return STATUS_INTERNAL_SERVER_ERROR;
     }
 
-    /* determine lower */
     if (*upper > size)
     {
-      /* more bytes requested than we have */
+
       *lower = 0;
     }
     else
@@ -729,7 +639,6 @@ static enum status handle_range(const char *str, size_t size, size_t *lower,
       *lower = size - *upper;
     }
 
-    /* set upper to the correct value */
     *upper = size - 1;
   }
 
@@ -748,10 +657,8 @@ void prepare_resp_http(const struct req_t *req, struct resp_t *res,
   static char tmppath[PATH_MAX];
   char *p, *mime;
 
-  /* empty all response fields */
   memset(res, 0, sizeof(*res));
 
-  /* copy request-path to response-path and clean it up */
   redirect = 0;
   memcpy(res->m_path, req->m_path,
          MIN(sizeof(res->m_path), sizeof(req->m_path)));
@@ -764,7 +671,6 @@ void prepare_resp_http(const struct req_t *req, struct resp_t *res,
     goto err;
   }
 
-  /* reject all non-well-known hidden targets (see RFC 8615) */
   if (strstr(res->m_path, "/.") &&
       strncmp(res->m_path, "/.well-known/", sizeof("/.well-known/") - 1))
   {
@@ -772,11 +678,6 @@ void prepare_resp_http(const struct req_t *req, struct resp_t *res,
     goto err;
   }
 
-  /*
-   * generate and stat internal path based on the cleaned up request
-   * path and the virtual host while ignoring query and fragment
-   * (valid according to RFC 3986)
-   */
   if (esnprintf(res->m_internal_path, sizeof(res->m_internal_path), "/%s/%s",
                 "", res->m_path))
   {
@@ -794,10 +695,6 @@ void prepare_resp_http(const struct req_t *req, struct resp_t *res,
     goto err;
   }
 
-  /*
-   * if the path points at a directory, make sure both the path
-   * and internal path have a trailing slash
-   */
   if (S_ISDIR(st.st_mode))
   {
     if ((tmps = ensure_dirslash(res->m_path, &redirect)) ||
@@ -810,16 +707,6 @@ void prepare_resp_http(const struct req_t *req, struct resp_t *res,
 
   if (S_ISDIR(st.st_mode))
   {
-    /*
-     * when we serve a directory, we first check if there
-     * exists a directory index. If not, we either make
-     * a directory listing (if enabled) or send an error
-     */
-
-    /*
-     * append docindex to internal_path temporarily
-     * (internal_path is guaranteed to end with '/')
-     */
     if (esnprintf(tmppath, sizeof(tmppath), "%s%s", res->m_internal_path,
                   srv->doc_idx))
     {
@@ -827,14 +714,11 @@ void prepare_resp_http(const struct req_t *req, struct resp_t *res,
       goto err;
     }
 
-    /* stat the temporary path, which must be a regular file */
     if (stat(tmppath, &st) < 0 || !S_ISREG(st.st_mode))
     {
       if (srv->list_directories)
       {
-        /* serve directory listing */
 
-        /* check if directory is accessible */
         if (access(res->m_internal_path, R_OK) != 0)
         {
           s = STATUS_FORBIDDEN;
@@ -859,7 +743,7 @@ void prepare_resp_http(const struct req_t *req, struct resp_t *res,
       }
       else
       {
-        /* reject */
+
         if (!S_ISREG(st.st_mode) || errno == EACCES)
         {
           log_info("S_ISREG is forbidden after errno EACCES\n");
@@ -874,7 +758,7 @@ void prepare_resp_http(const struct req_t *req, struct resp_t *res,
     }
     else
     {
-      /* the docindex exists; copy tmppath to internal path */
+
       if (esnprintf(res->m_internal_path, sizeof(res->m_internal_path), "%s",
                     tmppath))
       {
@@ -884,10 +768,9 @@ void prepare_resp_http(const struct req_t *req, struct resp_t *res,
     }
   }
 
-  /* modified since */
   if (req->m_field[REQ_IF_MODIFIED_SINCE][0])
   {
-    /* parse field */
+
     if (!strptime(req->m_field[REQ_IF_MODIFIED_SINCE], "%a, %d %b %Y %T GMT",
                   &tm))
     {
@@ -895,7 +778,6 @@ void prepare_resp_http(const struct req_t *req, struct resp_t *res,
       goto err;
     }
 
-    /* compare with last modification date of the file */
     if (difftime(st.st_mtim.tv_sec, timegm(&tm)) <= 0)
     {
       res->m_status = STATUS_NOT_MODIFIED;
@@ -904,7 +786,6 @@ void prepare_resp_http(const struct req_t *req, struct resp_t *res,
     }
   }
 
-  /* range */
   if ((s = handle_range(req->m_field[REQ_RANGE], st.st_size,
                         &(res->m_file.lower), &(res->m_file.upper))))
   {
@@ -928,7 +809,6 @@ void prepare_resp_http(const struct req_t *req, struct resp_t *res,
     }
   }
 
-  /* mime */
   mime = "application/octet-stream";
   if ((p = strrchr(res->m_internal_path, '.')))
   {
@@ -942,10 +822,8 @@ void prepare_resp_http(const struct req_t *req, struct resp_t *res,
     }
   }
 
-  /* fill response struct */
   res->m_type = RESTYPE_FILE;
 
-  /* check if file is readable */
   if (access(res->m_internal_path, R_OK))
   {
     res->m_status = STATUS_FORBIDDEN;
@@ -1002,10 +880,9 @@ err:
 void prepare_err_resp_http(const struct req_t *req, struct resp_t *res,
                            enum status s)
 {
-  /* used later */
+
   (void)req;
 
-  /* empty all response fields */
   memset(res, 0, sizeof(*res));
 
   res->m_type = RESTYPE_ERROR;

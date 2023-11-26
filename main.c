@@ -20,7 +20,8 @@
 #include "util.h"
 #include <linux/sched.h>
 
-int main(int argc, char **argv) {
+int main(int argc, char **argv)
+{
   printf("Misha's webserver (re) started!\n");
   struct group *grp = NULL;
   struct passwd *pwd = NULL;
@@ -33,7 +34,8 @@ int main(int argc, char **argv) {
   const char *err;
   char *tok[4];
 
-  if (argc != 4) {
+  if (argc != 4)
+  {
     die("usage: sudo misha_server 8080 run_as_user ./path/to/serve/dir\n");
   }
 
@@ -52,7 +54,8 @@ int main(int argc, char **argv) {
       3 + nthreads + nthreads * nslots + 5 * nthreads;
 
   in_socket = create_socket(srv.host, srv.port);
-  if (unblock_socket(in_socket)) {
+  if (unblock_socket(in_socket))
+  {
     return 1;
   }
 
@@ -69,21 +72,22 @@ int main(int argc, char **argv) {
         errno ? strerror(errno) : "Entry not found");
   }
 
-  if (chdir(servedir) < 0) {
+  if (chdir(servedir) < 0)
+  {
     die("chdir '%s':", servedir);
   }
 
   // Set a new root directory
-  if (chroot(".") < 0) {
-      die("chroot");
+  if (chroot(".") < 0)
+  {
+    die("chroot");
   }
 
-  /* drop root */
   if (pwd->pw_uid == 0 || grp->gr_gid == 0)
   {
     die("Won't run under root %s for obvious reasons",
         (pwd->pw_uid == 0) ? (grp->gr_gid == 0) ? "user and group" : "user"
-                            : "group");
+                           : "group");
   }
 
   if (setgroups(1, &(grp->gr_gid)) < 0)
@@ -123,8 +127,6 @@ int main(int argc, char **argv) {
     }
   }
 
-
-  /* accept incoming connections */
   init_thread_pool_for_server(in_socket, nthreads, nslots, &srv);
   return status;
 }
