@@ -21,8 +21,9 @@ int queue_create(void)
 }
 
 int queue_add_fd(int qfd, int fd, enum queue_event_type t, int shared,
-				 const void *data)
+				 const void *data, int is_primary)
 {
+	(void)is_primary;
 	struct epoll_event e;
 
 	if (shared)

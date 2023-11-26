@@ -36,7 +36,7 @@ create_worker(void *data)
 		exit(1);
 	}
 
-	if (queue_add_fd(queue_fd, d->m_in_socket, QUEUE_EVENT_IN, 1, NULL) < 0)
+	if (queue_add_fd(queue_fd, d->m_in_socket, QUEUE_EVENT_IN, 1, NULL, 1) < 0)
 	{
 		exit(1);
 	}
@@ -83,7 +83,7 @@ create_worker(void *data)
 
 				if (queue_add_fd(queue_fd, newc->m_file_descriptor,
 								 QUEUE_EVENT_IN,
-								 0, newc) < 0)
+								 0, newc, 0) < 0)
 				{
 
 					continue;

@@ -13,6 +13,7 @@
 static fd_set readfds[MAX_QUEUES] = {0};
 static fd_set writefds[MAX_QUEUES] = {0};
 static int num_fds[MAX_QUEUES] = {0};
+static int primary_fds[MAX_QUEUES] = {0};
 static int maxim_filedesc[MAX_QUEUES] = {0};
 static pthread_mutex_t num_queues_mutex = PTHREAD_MUTEX_INITIALIZER;
 
@@ -80,7 +81,7 @@ int queue_create(void)
     return num_queues - 1; // Return the index of the created queue
 }
 
-int queue_add_fd(int qfd, int fd, enum queue_event_type type, int shared, const void *data)
+int queue_add_fd(int qfd, int fd, enum queue_event_type type, int shared, const void *data, int is_primary)
 {
 
     if (qfd < 0 || qfd >= num_queues)
@@ -91,6 +92,10 @@ int queue_add_fd(int qfd, int fd, enum queue_event_type type, int shared, const 
     if (num_fds[qfd] >= MAX_FD_PER_QUEUE)
     {
         return -1; // Maximum number of file descriptors reached for this queue
+    }
+
+    if (is_primary) {
+        primary_fds[qfd] = fd;
     }
 
     if (fd > maxim_filedesc[qfd])
@@ -186,6 +191,9 @@ int queue_mod_fd(int qfd, int fd, enum queue_event_type type, const void *data)
 int queue_rem_fd(int qfd, int fd)
 {
     log_info("Called to remove fd %d from queue %d\n", fd, qfd);
+    if (primary_fds[qfd] == fd) {
+        return -1;
+    }
     if (qfd < 0 || qfd >= num_queues)
     {
         return -1; // Invalid queue index

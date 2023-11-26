@@ -231,6 +231,8 @@ struct conn_t *accept_con(int in_socket, struct conn_t *connection,
   if (i == nslots)
   {
     c = connection_get_drop_candidate(connection, nslots);
+    if (c == NULL) 
+      return NULL;
     c->m_resp.m_status = 0;
     log_con(c);
     reset_con(c);
