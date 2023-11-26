@@ -485,20 +485,6 @@ static enum status norm_path(char *uri, int *redirect)
   return 0;
 }
 
-static enum status add_virt_host_prefix(char uri[PATH_MAX], int *redirect,
-                                        const struct server *srv,
-                                        const struct resp_t *res)
-{
-  return 0;
-}
-
-static enum status apply_prefix_mapping_to_path(char uri[PATH_MAX],
-                                                int *redirect,
-                                                const struct server *srv,
-                                                const struct resp_t *res)
-{
-  return 0;
-}
 
 static enum status ensure_dirslash(char uri[PATH_MAX], int *redirect)
 {
@@ -662,10 +648,7 @@ void prepare_resp_http(const struct req_t *req, struct resp_t *res,
   redirect = 0;
   memcpy(res->m_path, req->m_path,
          MIN(sizeof(res->m_path), sizeof(req->m_path)));
-  if ((tmps = norm_path(res->m_path, &redirect)) ||
-      (tmps = add_virt_host_prefix(res->m_path, &redirect, srv, res)) ||
-      (tmps = apply_prefix_mapping_to_path(res->m_path, &redirect, srv, res)) ||
-      (tmps = norm_path(res->m_path, &redirect)))
+  if (tmps = norm_path(res->m_path, &redirect))
   {
     s = tmps;
     goto err;

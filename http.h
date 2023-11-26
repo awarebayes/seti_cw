@@ -71,7 +71,6 @@ enum res_type
 
 struct resp_t
 {
-  struct virtual_host *m_virt_host;
   enum status m_status;
   char m_path[PATH_MAX];
   char m_internal_path[PATH_MAX];

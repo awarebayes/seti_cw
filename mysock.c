@@ -156,10 +156,6 @@ int sockets_same_addr(const struct sockaddr_storage *sa1,
 
   switch (sa1->ss_family)
   {
-  case AF_INET6:
-    return memcmp(((struct sockaddr_in6 *)sa1)->sin6_addr.s6_addr,
-                  ((struct sockaddr_in6 *)sa2)->sin6_addr.s6_addr,
-                  sizeof(((struct sockaddr_in6 *)sa1)->sin6_addr.s6_addr)) == 0;
   case AF_INET:
     return ((struct sockaddr_in *)sa1)->sin_addr.s_addr ==
            ((struct sockaddr_in *)sa2)->sin_addr.s_addr;
@@ -180,8 +176,7 @@ void close_all_sockets()
   {
     if (getsockname(sockfd, (struct sockaddr *)&addr, &addrlen) == 0)
     {
-      // Check if it's an IP socket
-      if (addr.sin6_family == AF_INET || addr.sin6_family == AF_INET6)
+      if (addr.sin6_family == AF_INET)
       {
         // Close the socket
         printf("Closed socket...\n");
