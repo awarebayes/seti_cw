@@ -1,5 +1,5 @@
 CPPFLAGS =  -D_DEFAULT_SOURCE
-CFLAGS   = -std=c99 -pedantic -Wall -Wextra -O0 -g
+CFLAGS   = -std=c99 -pedantic -Wall -Wextra -O3 
 CC = gcc
 LDFLAGS  = -lpthread 
 COMPONENTS = connection buffer http queue_impl srv mysock util
