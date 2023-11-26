@@ -1,0 +1,8 @@
+{
+    "files.associations": {
+        "select.h": "c",
+        "any": "c",
+        "queue.h": "c",
+        "epoll.h": "c"
+    }
+}

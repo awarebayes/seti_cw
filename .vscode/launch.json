@@ -1,0 +1,54 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Make and Launch Web Server",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/misha_server", // Replace with the path to your web server executable
+            "args": [
+                "-p",
+                "80",
+                "-h",
+                "0.0.0.0"
+            ], // Replace with your desired parameters
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}",
+            "environment": [],
+            "miDebuggerPath": "/bin/sudo_gdb.sh",
+            "externalConsole": false,
+            "MIMode": "gdb",
+            "setupCommands": [
+                {
+                    "description": "Enable pretty-printing for gdb",
+                    "text": "-enable-pretty-printing",
+                    "ignoreFailures": true
+                },
+                {
+                    "text": "-gdb-set follow-fork-mode child"
+                }
+            ],
+            "preLaunchTask": "Make",
+            "linux": {
+                "MIMode": "gdb",
+                "stopAtEntry": false,
+                "cwd": "${workspaceFolder}",
+                "program": "${workspaceFolder}/misha_server", // Replace with the path to your web server executable
+                "args": [
+                    "-p",
+                    "80",
+                    "-h",
+                    "0.0.0.0"
+                ], // Replace with your desired parameters
+                "preLaunchTask": "make",
+                "setupCommands": [
+                    {
+                        "description": "Enable pretty-printing for gdb",
+                        "text": "-enable-pretty-printing",
+                        "ignoreFailures": true
+                    }
+                ]
+            },
+        },
+    ]
+}
