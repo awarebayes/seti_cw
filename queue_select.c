@@ -266,7 +266,7 @@ ssize_t queue_wait(int qfd, queue_event *events, size_t event_len)
         tv.tv_usec = 0;
         tv.tv_sec = 1;
 
-        ssize_t nready = select(maxfd, &readfds_copy, &writefds_copy, NULL, &tv);
+        ssize_t nready = pselect(maxfd, &readfds_copy, &writefds_copy, NULL, &tv, NULL);
 
         // log_info("Got events %d from queue %d\n", nready, qfd);
 
