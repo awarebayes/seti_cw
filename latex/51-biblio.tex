@@ -1,0 +1,10 @@
+
+\patchcmd{\thebibliography}{\chapter*}{\section*}{}{}
+
+\addcontentsline{toc}{section}{СПИСОК ИСПОЛЬЗОВАННЫХ ИСТОЧНИКОВ}
+
+\renewcommand\bibname{\hfill{\centering СПИСОК ИСПОЛЬЗОВАННЫХ ИСТОЧНИКОВ }\hfill}
+
+\bibliographystyle{utf8gost705u}  % стилевой файл для оформления по ГОСТу
+
+\bibliography{51-biblio}          % имя библиографической базы (bib-файла)
